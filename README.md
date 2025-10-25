@@ -175,7 +175,7 @@ Keep an eye on [Faraday release notes](https://docs.faradaysec.com/) for upstrea
 - Pull requests are welcome—please describe the environment and steps used for testing.
 - Feel free to fork and adapt for other distributions; share improvements back with the community.
 
-**Contact:** Pedro W. L. Soares de Souza (Mr.Blue)
+**Contact:** mr_blue_is_real@proton.me
 
 ---
 
