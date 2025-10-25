@@ -1,0 +1,72 @@
+services:
+  db:
+    image: postgres:15
+    container_name: faraday-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: faraday
+      POSTGRES_USER: faraday
+      POSTGRES_PASSWORD: faraday
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faraday -d faraday || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7
+    container_name: faraday-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  faraday:
+    image: faradaysec/faraday:latest
+    container_name: faraday-web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -lc '
+        export FARADAY_SERVER_CONFIG=/home/faraday/.faraday/config/server.ini
+        export FARADAY_MANAGE_CONFIG=/home/faraday/.faraday/config/server.ini
+        faraday-manage migrate || true;
+        exec faraday-server --bind_address 0.0.0.0 --port 5985
+      '
+    ports:
+      - "127.0.0.1:5985:5985"
+    environment:
+      PGSQL_HOST: faraday-db
+      PGSQL_USER: faraday
+      PGSQL_PASSWD: faraday
+      PGSQL_DBNAME: faraday
+      CELERY_BROKER_URL: redis://faraday-redis:6379/0
+      CELERY_RESULT_BACKEND: redis://faraday-redis:6379/0
+      FARADAY_SERVER_CONFIG: /home/faraday/.faraday/config/server.ini
+      FARADAY_MANAGE_CONFIG: /home/faraday/.faraday/config/server.ini
+      SECURITY_PASSWORD_HASH: pbkdf2_sha512
+      SECURITY_PASSWORD_SCHEMES: pbkdf2_sha512
+      SECURITY_DEPRECATED_PASSWORD_SCHEMES: bcrypt
+      SECURITY_USER_IDENTITY_ATTRIBUTES: username
+    volumes:
+      - ./server.ini:/home/faraday/.faraday/config/server.ini:ro
+      - ./app.py:/usr/local/lib/python3.11/site-packages/faraday/server/app.py:ro
+      - faraday-storage:/home/faraday/.faraday/storage
+
+volumes:
+  dbdata:
+    external: true
+    name: config_dbdata
+  faraday-storage:
+    external: true
+    name: config_faraday-storage
